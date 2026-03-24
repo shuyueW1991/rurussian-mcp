@@ -44,3 +44,4 @@ secret.env
 deploy.env
 rds.env
 .stripe_secret_key
+public/sw.js
