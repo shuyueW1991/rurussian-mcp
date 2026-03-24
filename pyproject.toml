@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rurussian-mcp"
+version = "0.1.0"
+description = "MCP server for rurussian.com - Russian learning context and sentences"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "rurussian", email = "support@rurussian.com"}
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx",
+    "pydantic"
+]
+
+[project.scripts]
+rurussian-mcp = "rurussian_mcp.server:main"

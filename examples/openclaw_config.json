@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "rurussian": {
+      "command": "rurussian-mcp",
+      "args": [],
+      "env": {
+        "RURUSSIAN_API_KEY": "YOUR_RURUSSIAN_API_KEY"
+      }
+    }
+  },
+  "startupTasks": [
+    {
+      "tool": "authenticate",
+      "arguments": {
+        "api_key": "YOUR_RURUSSIAN_API_KEY",
+        "user_agent": "OpenClaw/1.0"
+      }
+    }
+  ]
+}
