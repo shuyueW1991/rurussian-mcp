@@ -32,7 +32,7 @@ pip install rurussian-mcp
 
 3. In your bot flow, call `authenticate` first using that API key, then call learning tools.
 
-For a drop-in example file, see [openclaw_config.json](file:///home/wangshuyue/litelanglearn_repo/mcp-main/rurussian-mcp/examples/openclaw_config.json).
+For a drop-in example file, see [openclaw_config.json](./examples/openclaw_config.json).
 
 ## Tool List
 
@@ -71,8 +71,8 @@ For a drop-in example file, see [openclaw_config.json](file:///home/wangshuyue/l
 
 ## Integration Guide
 
-For extended OpenClaw integration steps and platform setup ideas, see [INTEGRATION.md](file:///home/wangshuyue/litelanglearn_repo/mcp-main/rurussian-mcp/docs/INTEGRATION.md).
+For extended OpenClaw integration steps and platform setup ideas, see [INTEGRATION.md](./docs/INTEGRATION.md).
 
 ## License
 
-MIT. See [LICENSE](file:///home/wangshuyue/litelanglearn_repo/mcp-main/rurussian-mcp/LICENSE).
+MIT. See [LICENSE](./LICENSE).
