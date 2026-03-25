@@ -28,14 +28,15 @@ pip install rurussian-mcp
       "command": "rurussian-mcp",
       "args": [],
       "env": {
-        "RURUSSIAN_API_KEY": "YOUR_RURUSSIAN_API_KEY"
+        "RURUSSIAN_API_URL": "https://rurussian.com/api"
       }
     }
   }
 }
 ```
 
-3. In your bot flow, call `authenticate` first using that API key, then call learning tools.
+3. If the bot already has a key, call `authenticate` first.
+4. If the bot has no key yet, run `create_key_purchase_session` and then `confirm_key_purchase`.
 
 For a drop-in example file, see [openclaw_config.json](./examples/openclaw_config.json).
 
@@ -43,6 +44,12 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
 
 - `authenticate(api_key, user_agent?)`
   - Example request: "Use my RuRussian API key and initialize this session."
+- `authentication_status()`
+  - Example request: "Check whether this session is already authenticated."
+- `create_key_purchase_session(email, plan, success_url?, cancel_url?)`
+  - Example request: "Create a checkout session for `month_1` and return the payment URL."
+- `confirm_key_purchase(session_id, auto_authenticate?, return_api_key?)`
+  - Example request: "Confirm the payment session and auto-authenticate if a key is issued."
 - `get_word_data(word)`
   - Example request: "Explain the declension and meaning of `книга`."
 - `get_sentences(word, form_word?, form_id?)`
@@ -64,15 +71,23 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
 ## Troubleshooting
 
 - Missing API key
-  - Ensure your OpenClaw config contains an API key value and your bot passes it into `authenticate`.
+  - Use `create_key_purchase_session` and `confirm_key_purchase`, or pass a valid key into `authenticate`.
 - Authentication required error
   - Call `authenticate` before any other MCP tool in each new server session.
+- Purchase endpoint mismatch
+  - Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` in env when your backend paths differ.
 - Python version issue
   - This package requires Python 3.9 or newer.
 - Command not found: `rurussian-mcp`
   - Ensure installation completed in the same environment where OpenClaw runs.
 - API endpoint/network errors
   - Verify internet access and optionally set `RURUSSIAN_API_URL` only if you need a custom backend URL.
+
+## Security Notes
+
+- This repo contains no built-in secrets and no real keys.
+- The server never prints full API keys in status or purchase confirmation output unless `return_api_key=true` is explicitly requested.
+- Do not commit real keys to config files. Use environment variables in deployment platforms.
 
 ## Integration Guide
 

@@ -18,6 +18,7 @@ Use RuRussian MCP when the user asks to:
 - Analyze a Russian sentence form-by-form
 - Generate short Russian reading practice content
 - Translate Russian text into English
+- Buy a RuRussian plan and activate an API key directly from bot flow
 
 Do not use this MCP for unrelated tasks like general coding, system operations, or non-language workflows.
 
@@ -38,14 +39,14 @@ pip install rurussian-mcp
       "command": "rurussian-mcp",
       "args": [],
       "env": {
-        "RURUSSIAN_API_KEY": "YOUR_RURUSSIAN_API_KEY"
+        "RURUSSIAN_API_URL": "https://rurussian.com/api"
       }
     }
   }
 }
 ```
 
-3. At the start of each new server session, call `authenticate` before any other tool:
+3. If a key is available, authenticate at the start of each new session:
 
 ```json
 {
@@ -59,12 +60,22 @@ pip install rurussian-mcp
 
 Optional:
 - Set `RURUSSIAN_API_URL` only when targeting a non-default backend.
+- Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` when backend purchase paths differ.
 
 ## Tools and Routing
 
 - `authenticate(api_key, user_agent?)`
   - First call in each session.
   - Stores credentials for all subsequent tool calls.
+
+- `authentication_status()`
+  - Checks if this session already has a key loaded.
+
+- `create_key_purchase_session(email, plan, success_url?, cancel_url?)`
+  - Starts checkout for plan purchase and returns a hosted payment URL.
+
+- `confirm_key_purchase(session_id, auto_authenticate?, return_api_key?)`
+  - Confirms payment completion, gets issued API key, and can auto-authenticate.
 
 - `get_word_data(word)`
   - Use for definitions, declensions, and detailed lexical context.
@@ -88,21 +99,26 @@ Optional:
 
 ## Recommended Agent Workflow
 
-1. Confirm credentials are available and call `authenticate`.
-2. Detect intent from the user prompt.
-3. Route to one primary tool first:
+1. Check `authentication_status`.
+2. If not authenticated:
+   - Start payment with `create_key_purchase_session`.
+   - Confirm and load key with `confirm_key_purchase`.
+   - Or call `authenticate` with an existing key.
+3. Detect intent from the user prompt.
+4. Route to one primary tool first:
    - Word intent -> `get_word_data`
    - Example usage intent -> `get_sentences`
    - Reading practice intent -> `generate_zakuska`
    - Grammar breakdown intent -> `analyze_sentence`
    - Translation intent -> `translate_text`
-4. If helpful, chain tools:
+5. If helpful, chain tools:
    - `generate_zakuska` then `analyze_sentence`
    - `get_word_data` then `get_sentences`
-5. Return concise teaching output with actionable learner guidance.
+6. Return concise teaching output with actionable learner guidance.
 
 ## Failure Handling
 
 - If authentication errors occur, re-run `authenticate` in the current session.
-- If API key errors occur, ask for a valid active RuRussian API key.
+- If API key errors occur, trigger purchase flow or ask for a valid active RuRussian API key.
+- If purchase endpoint errors occur, configure `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS`.
 - If network errors occur, retry and check backend reachability.
