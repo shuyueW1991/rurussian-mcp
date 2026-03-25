@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rurussian-mcp"
-version = "1.0.3"
+version = "1.0.4"
 description = "MCP server for rurussian.com - Russian learning context and sentences"
 readme = "README.md"
 requires-python = ">=3.9"

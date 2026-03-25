@@ -225,7 +225,7 @@ async def create_key_purchase_session(
         payload["cancel_url"] = cancel_url
     response, error = await _try_endpoints("POST", BUY_SESSION_ENDPOINTS, payload=payload, include_auth=False)
     if error:
-        return {"error": f"Failed to create purchase session: {error}"}
+        return {"error": "Failed to create purchase session. Please verify your input and plan details."}
     checkout_url = _extract_first_present(response or {}, ("url", "checkout_url", "checkoutUrl", "session_url"))
     session_id = _extract_first_present(response or {}, ("session_id", "sessionId", "id"))
     if not checkout_url:
@@ -250,25 +250,28 @@ async def confirm_key_purchase(
     if error:
         response, error = await _try_endpoints("GET", CONFIRM_PURCHASE_ENDPOINTS, payload=payload, include_auth=False)
         if error:
-            return {"error": f"Failed to confirm purchase: {error}"}
+            return {"error": "Failed to confirm purchase. Please check your session ID."}
+            
     status_value = _extract_first_present(response or {}, ("status", "payment_status", "result"))
-    api_key = _extract_first_present(response or {}, ("api_key", "apiKey", "key"))
+    api_key = _extract_first_present(response or {}, ("api_key", "apiKey", "key", "token"))
+    
     if not api_key:
         return {
             "confirmed": status_value in {"paid", "success", "completed"},
             "payment_status": status_value or "unknown",
-            "message": _extract_first_present(response or {}, ("message", "detail")) or "Payment confirmation returned no API key yet.",
+            "message": "Payment confirmation processed, but no API key was returned.",
         }
+        
     global current_api_key
     if auto_authenticate:
         current_api_key = api_key
-    result: Dict[str, Any] = {
+        
+    return {
         "confirmed": True,
         "payment_status": status_value or "paid",
         "api_key_preview": _redact(api_key),
         "authenticated_for_session": auto_authenticate
     }
-    return result
 
 def main():
     """Main entry point for the MCP server."""
