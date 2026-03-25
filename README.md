@@ -5,6 +5,11 @@
 [![Russian Learning](https://img.shields.io/badge/Russian-Learning-16a34a)](https://rurussian.com)
 
 MCP server for RURussian.com – turn your OpenClaw bot into a Russian tutor.
+Rurussian.com is a state-of-the-art tool designed for deep, immersive mastery of Russian vocabulary. At its core, it features sentence-driven declension memorization to help you internalize grammar naturally in context, plus precise, native-level text generation for individual words and full sentences. All generated content is laser-focused on the real-world, typical usage of terms as they appear in formal dictionary definitions. What’s more, the platform lets you create fully customized textbooks aligned exactly with your learning level and progress, with GPT-5-powered AI delivering in-depth, granular analysis of every sentence you collect and study.
+Rurussian.com is built to sustain a long-term Russian learning journey.
+
+
+
 
 ## Quick Start
 
