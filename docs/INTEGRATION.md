@@ -34,7 +34,7 @@ Open your `~/.openclaw/config.json` and add the server entry:
 }
 ```
 
-You can also copy [openclaw_config.json](file:///home/wangshuyue/litelanglearn_repo/mcp-main/rurussian-mcp/examples/openclaw_config.json) as a starting template.
+You can also copy [openclaw_config.json](../examples/openclaw_config.json) as a starting template.
 
 ## Step 3: Authenticate in Bot Flow
 
