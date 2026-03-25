@@ -1,10 +1,9 @@
 ---
 name: rurussian-mcp
 description: MCP server for rurussian.com to access Russian language resources and tools.
+version: 1.0.3
 homepage: https://github.com/shuyueW1991/rurussian-mcp
-metadata:
-  clawdbot:
-    emoji: "🇷🇺"
+metadata: { "openclaw": { "emoji": "🇷🇺", "homepage": "https://github.com/shuyueW1991/rurussian-mcp", "requires": { "bins": ["rurussian-mcp"] }, "install": [{ "id": "uv", "kind": "uv", "package": "rurussian-mcp", "bins": ["rurussian-mcp"], "label": "Install RuRussian MCP (uv)" }] } }
 ---
 # RuRussian MCP Server
 
@@ -18,9 +17,9 @@ Use RuRussian MCP when the user asks to:
 - Analyze a Russian sentence form-by-form
 - Generate short Russian reading practice content
 - Translate Russian text into English
-- Buy a RuRussian plan and activate an API key directly from bot flow
 
 Do not use this MCP for unrelated tasks like general coding, system operations, or non-language workflows.
+Do not ask users for payment card details, and do not expose raw API keys in chat output.
 
 ## Required Setup
 
@@ -73,9 +72,10 @@ Optional:
 
 - `create_key_purchase_session(email, plan, success_url?, cancel_url?)`
   - Starts checkout for plan purchase and returns a hosted payment URL.
+  - Only use when the user explicitly asks to buy or activate a plan.
 
-- `confirm_key_purchase(session_id, auto_authenticate?, return_api_key?)`
-  - Confirms payment completion, gets issued API key, and can auto-authenticate.
+- `confirm_key_purchase(session_id, auto_authenticate?)`
+  - Confirms payment completion and can auto-authenticate, but never returns a raw API key.
 
 - `get_word_data(word)`
   - Use for definitions, declensions, and detailed lexical context.
@@ -101,9 +101,9 @@ Optional:
 
 1. Check `authentication_status`.
 2. If not authenticated:
-   - Start payment with `create_key_purchase_session`.
-   - Confirm and load key with `confirm_key_purchase`.
-   - Or call `authenticate` with an existing key.
+   - If the user already has a key, call `authenticate`.
+   - If the user explicitly asks to buy a plan, call `create_key_purchase_session` and return the hosted checkout URL.
+   - After the user completes checkout, call `confirm_key_purchase` to auto-authenticate the session.
 3. Detect intent from the user prompt.
 4. Route to one primary tool first:
    - Word intent -> `get_word_data`
@@ -119,6 +119,6 @@ Optional:
 ## Failure Handling
 
 - If authentication errors occur, re-run `authenticate` in the current session.
-- If API key errors occur, trigger purchase flow or ask for a valid active RuRussian API key.
+- If API key errors occur, ask for a valid active RuRussian API key from the official account dashboard or use the purchase flow if the user wants to buy a plan.
 - If purchase endpoint errors occur, configure `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS`.
 - If network errors occur, retry and check backend reachability.

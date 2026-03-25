@@ -244,7 +244,6 @@ async def create_key_purchase_session(
 async def confirm_key_purchase(
     session_id: str,
     auto_authenticate: bool = True,
-    return_api_key: bool = False,
 ) -> Dict[str, Any]:
     payload = {"session_id": session_id}
     response, error = await _try_endpoints("POST", CONFIRM_PURCHASE_ENDPOINTS, payload=payload, include_auth=False)
@@ -269,8 +268,6 @@ async def confirm_key_purchase(
         "api_key_preview": _redact(api_key),
         "authenticated_for_session": auto_authenticate
     }
-    if return_api_key:
-        result["api_key"] = api_key
     return result
 
 def main():

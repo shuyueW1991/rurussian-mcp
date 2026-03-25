@@ -4,9 +4,7 @@
       "command": "rurussian-mcp",
       "args": [],
       "env": {
-        "RURUSSIAN_API_URL": "https://rurussian.com/api",
-        "RURUSSIAN_BUY_SESSION_ENDPOINTS": "/create-checkout-session,/checkout/session,/billing/checkout-session",
-        "RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS": "/verify-checkout-session,/checkout/verify,/payment/verify,/payment/complete"
+        "RURUSSIAN_API_URL": "https://rurussian.com/api"
       }
     }
   }

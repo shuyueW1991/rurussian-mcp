@@ -36,7 +36,8 @@ pip install rurussian-mcp
 ```
 
 3. If the bot already has a key, call `authenticate` first.
-4. If the bot has no key yet, run `create_key_purchase_session` and then `confirm_key_purchase`.
+4. If the bot has no key yet and the user wants to buy one, run `create_key_purchase_session`, let the user complete hosted checkout, then run `confirm_key_purchase`.
+5. `confirm_key_purchase` can auto-authenticate the session, but it never returns a raw API key.
 
 For a drop-in example file, see [openclaw_config.json](./examples/openclaw_config.json).
 
@@ -48,7 +49,7 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
   - Example request: "Check whether this session is already authenticated."
 - `create_key_purchase_session(email, plan, success_url?, cancel_url?)`
   - Example request: "Create a checkout session for `month_1` and return the payment URL."
-- `confirm_key_purchase(session_id, auto_authenticate?, return_api_key?)`
+- `confirm_key_purchase(session_id, auto_authenticate?)`
   - Example request: "Confirm the payment session and auto-authenticate if a key is issued."
 - `get_word_data(word)`
   - Example request: "Explain the declension and meaning of `книга`."
@@ -71,11 +72,11 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
 ## Troubleshooting
 
 - Missing API key
-  - Use `create_key_purchase_session` and `confirm_key_purchase`, or pass a valid key into `authenticate`.
+  - Pass a valid key into `authenticate`, or use the purchase flow if the user wants to buy a plan.
 - Authentication required error
   - Call `authenticate` before any other MCP tool in each new server session.
 - Purchase endpoint mismatch
-  - Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` in env when your backend paths differ.
+  - Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` when your backend paths differ.
 - Python version issue
   - This package requires Python 3.9 or newer.
 - Command not found: `rurussian-mcp`
@@ -86,7 +87,8 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
 ## Security Notes
 
 - This repo contains no built-in secrets and no real keys.
-- The server never prints full API keys in status or purchase confirmation output unless `return_api_key=true` is explicitly requested.
+- Purchase helpers can initiate hosted checkout and confirm a session, but payment is still completed on the RuRussian checkout page rather than inside the tool.
+- The server never returns a full API key in tool output.
 - Do not commit real keys to config files. Use environment variables in deployment platforms.
 
 ## Integration Guide
