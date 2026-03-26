@@ -2,6 +2,7 @@ from mcp.server.fastmcp import FastMCP
 from typing import Optional, Dict, Any, Iterable, Tuple
 import os
 import httpx
+from urllib.parse import urlparse, parse_qs
 
 mcp = FastMCP(
     "rurussian-mcp",
@@ -10,6 +11,27 @@ mcp = FastMCP(
 
 API_BASE_URL = os.getenv("RURUSSIAN_API_URL", "https://rurussian.com/api").rstrip("/")
 DEFAULT_TIMEOUT = 30.0
+PAYMENT_SUCCESS_STATUSES = {"paid", "success", "completed"}
+PLAN_CATALOG: Dict[str, Dict[str, Any]] = {
+    "month_1": {
+        "price_usd": 3.75,
+        "duration_days": 30,
+        "display_name": "1 Month Subscription",
+        "marketing_copy": "Fastest way to try RuRussian inside an OpenClaw bot.",
+    },
+    "year_1": {
+        "price_usd": 7.49,
+        "duration_days": 365,
+        "display_name": "1 Year Subscription",
+        "marketing_copy": "Best balance for active Russian-learning bots.",
+    },
+    "year_3": {
+        "price_usd": 21.74,
+        "duration_days": 365 * 3,
+        "display_name": "3 Years Subscription",
+        "marketing_copy": "Lowest long-term cost for always-on tutoring bots.",
+    },
+}
 BUY_SESSION_ENDPOINTS = tuple(
     endpoint.strip()
     for endpoint in os.getenv(
@@ -22,13 +44,21 @@ CONFIRM_PURCHASE_ENDPOINTS = tuple(
     endpoint.strip()
     for endpoint in os.getenv(
         "RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS",
-        "/verify-checkout-session,/checkout/verify,/payment/verify,/payment/complete",
+        "/payment/complete,/verify-checkout-session,/checkout/verify,/payment/verify",
     ).split(",")
     if endpoint.strip()
 )
 
 current_api_key: Optional[str] = os.getenv("RURUSSIAN_API_KEY")
 current_user_agent: str = "OpenClaw/1.0"
+current_paid_access: bool = False
+current_purchase_context: Dict[str, Any] = {
+    "email": "",
+    "plan": "",
+    "checkout_url": "",
+    "session_id": "",
+    "payment_status": "",
+}
 
 def _redact(value: Optional[str], visible: int = 4) -> str:
     if not value:
@@ -45,6 +75,9 @@ def get_headers(include_auth: bool = True) -> Dict[str, str]:
     if include_auth and current_api_key:
         headers["Authorization"] = f"Bearer {current_api_key}"
     return headers
+
+def _has_access() -> bool:
+    return bool(current_api_key or current_paid_access)
 
 def _safe_json(response: httpx.Response) -> Dict[str, Any]:
     try:
@@ -69,6 +102,25 @@ def _extract_first_present(data: Dict[str, Any], keys: Iterable[str]) -> Optiona
         if isinstance(value, str) and value:
             return value
     return None
+
+def _normalize_status(status_value: Optional[str]) -> str:
+    return (status_value or "").strip().lower()
+
+def _is_payment_confirmed(status_value: Optional[str]) -> bool:
+    return _normalize_status(status_value) in PAYMENT_SUCCESS_STATUSES
+
+def _extract_session_id_from_url(url: str) -> str:
+    if not url:
+        return ""
+    try:
+        parsed = urlparse(url)
+        values = parse_qs(parsed.query).get("session_id", [])
+        return values[0] if values else ""
+    except Exception:
+        return ""
+
+def _set_purchase_context(**kwargs: Any) -> None:
+    current_purchase_context.update({key: value for key, value in kwargs.items() if value is not None})
 
 async def _try_endpoints(
     method: str,
@@ -102,23 +154,65 @@ def authenticate(api_key: str, user_agent: str = "OpenClaw/1.0") -> str:
     Authenticate with the RuRussian API using your API key.
     You must call this before using other tools.
     """
-    global current_api_key, current_user_agent
+    global current_api_key, current_user_agent, current_paid_access
     current_api_key = api_key
     current_user_agent = user_agent
+    current_paid_access = False
     return "Authentication credentials stored successfully. Future requests will use this API key."
 
 @mcp.tool()
 def authentication_status() -> Dict[str, Any]:
     return {
-        "authenticated": bool(current_api_key),
+        "authenticated": _has_access(),
+        "authentication_method": "api_key" if current_api_key else "paid_checkout" if current_paid_access else "none",
         "api_key_preview": _redact(current_api_key),
-        "user_agent": current_user_agent
+        "user_agent": current_user_agent,
+        "purchase_context": {
+            "email": current_purchase_context.get("email", ""),
+            "plan": current_purchase_context.get("plan", ""),
+            "session_id": current_purchase_context.get("session_id", ""),
+            "payment_status": current_purchase_context.get("payment_status", ""),
+            "checkout_url": current_purchase_context.get("checkout_url", ""),
+        },
     }
 
 def _check_auth() -> Optional[Dict[str, str]]:
-    if not current_api_key:
-        return {"error": "Authentication required. Please call the 'authenticate' tool first."}
+    if not _has_access():
+        return {"error": "Authentication required. Call 'authenticate' with an API key or complete the purchase flow first."}
     return None
+
+@mcp.tool()
+def list_pricing_plans() -> Dict[str, Any]:
+    return {
+        "currency": "USD",
+        "plans": [
+            {
+                "plan": plan_id,
+                "display_name": plan_data["display_name"],
+                "price_usd": plan_data["price_usd"],
+                "duration_days": plan_data["duration_days"],
+                "marketing_copy": plan_data["marketing_copy"],
+            }
+            for plan_id, plan_data in PLAN_CATALOG.items()
+        ],
+        "recommended_bot_flow": [
+            "Choose a plan.",
+            "Call create_key_purchase_session with the bot-controlled payer email.",
+            "Open the checkout_url in a payment-capable browser flow.",
+            "After checkout redirects back with session_id, call confirm_key_purchase.",
+        ],
+    }
+
+@mcp.tool()
+def purchase_status() -> Dict[str, Any]:
+    return {
+        "checkout_started": bool(current_purchase_context.get("checkout_url")),
+        "session_id": current_purchase_context.get("session_id", ""),
+        "payment_status": current_purchase_context.get("payment_status", ""),
+        "paid_access_active": current_paid_access,
+        "plan": current_purchase_context.get("plan", ""),
+        "email": current_purchase_context.get("email", ""),
+    }
 
 @mcp.tool()
 async def get_word_data(word: str) -> Dict[str, Any]:
@@ -218,6 +312,11 @@ async def create_key_purchase_session(
     success_url: str = "",
     cancel_url: str = "",
 ) -> Dict[str, Any]:
+    if plan not in PLAN_CATALOG:
+        return {
+            "error": f"Unsupported plan '{plan}'.",
+            "available_plans": list(PLAN_CATALOG.keys()),
+        }
     payload: Dict[str, Any] = {"email": email, "plan": plan}
     if success_url:
         payload["success_url"] = success_url
@@ -225,19 +324,28 @@ async def create_key_purchase_session(
         payload["cancel_url"] = cancel_url
     response, error = await _try_endpoints("POST", BUY_SESSION_ENDPOINTS, payload=payload, include_auth=False)
     if error:
-        return {"error": "Failed to create purchase session. Please verify your input and plan details."}
+        return {"error": f"Failed to create purchase session. {error}"}
     checkout_url = _extract_first_present(response or {}, ("url", "checkout_url", "checkoutUrl", "session_url"))
-    session_id = _extract_first_present(response or {}, ("session_id", "sessionId", "id"))
+    session_id = _extract_first_present(response or {}, ("session_id", "sessionId", "id")) or _extract_session_id_from_url(checkout_url or "")
     if not checkout_url:
         return {
             "error": "Purchase session created but checkout URL was not found in response.",
             "payment_status": _extract_first_present(response or {}, ("status", "payment_status", "result")) or "unknown",
         }
+    _set_purchase_context(
+        email=email,
+        plan=plan,
+        checkout_url=checkout_url,
+        session_id=session_id,
+        payment_status="checkout_created",
+    )
     return {
         "checkout_url": checkout_url,
         "session_id": session_id,
         "plan": plan,
-        "next_step": "Open checkout_url and complete payment, then call confirm_key_purchase with session_id."
+        "plan_details": PLAN_CATALOG[plan],
+        "next_step": "Open checkout_url and complete payment. If the backend does not return session_id immediately, read session_id from the success redirect URL and pass it to confirm_key_purchase.",
+        "bot_payment_ready": True,
     }
 
 @mcp.tool()
@@ -245,32 +353,43 @@ async def confirm_key_purchase(
     session_id: str,
     auto_authenticate: bool = True,
 ) -> Dict[str, Any]:
-    payload = {"session_id": session_id}
+    global current_api_key, current_paid_access
+    payload = {"session_id": session_id, "include_api_key": True}
     response, error = await _try_endpoints("POST", CONFIRM_PURCHASE_ENDPOINTS, payload=payload, include_auth=False)
     if error:
         response, error = await _try_endpoints("GET", CONFIRM_PURCHASE_ENDPOINTS, payload=payload, include_auth=False)
         if error:
-            return {"error": "Failed to confirm purchase. Please check your session ID."}
+            return {"error": f"Failed to confirm purchase. {error}"}
             
     status_value = _extract_first_present(response or {}, ("status", "payment_status", "result"))
     api_key = _extract_first_present(response or {}, ("api_key", "apiKey", "key", "token"))
-    
+    confirmed = bool(api_key) or _is_payment_confirmed(status_value)
+    _set_purchase_context(
+        session_id=session_id,
+        payment_status=status_value or "unknown",
+    )
+
     if not api_key:
+        if confirmed and auto_authenticate:
+            current_paid_access = True
         return {
-            "confirmed": status_value in {"paid", "success", "completed"},
+            "confirmed": confirmed,
             "payment_status": status_value or "unknown",
-            "message": "Payment confirmation processed, but no API key was returned.",
+            "authenticated_for_session": bool(confirmed and auto_authenticate),
+            "auth_mode": "paid_checkout" if confirmed and auto_authenticate else "none",
+            "message": "Payment confirmation processed. No raw API key was returned by the backend, so this MCP session uses checkout-backed access for subsequent calls.",
         }
         
-    global current_api_key
     if auto_authenticate:
         current_api_key = api_key
+        current_paid_access = False
         
     return {
         "confirmed": True,
         "payment_status": status_value or "paid",
         "api_key_preview": _redact(api_key),
-        "authenticated_for_session": auto_authenticate
+        "authenticated_for_session": auto_authenticate,
+        "auth_mode": "api_key" if auto_authenticate else "none",
     }
 
 def main():

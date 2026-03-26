@@ -1,6 +1,6 @@
 # OpenClaw Integration Guide
 
-This guide helps you connect RuRussian MCP to OpenClaw bots for Russian tutoring and self-service API key purchase.
+This guide helps you connect RuRussian MCP to OpenClaw bots for Russian tutoring and self-service paid activation.
 
 ## Prerequisites
 
@@ -27,23 +27,28 @@ Open your `~/.openclaw/config.json` and add the server entry:
       "command": "rurussian-mcp",
       "args": [],
       "env": {
-        "RURUSSIAN_API_URL": "https://rurussian.com/api"
+        "RURUSSIAN_API_URL": "https://rurussian.com/api",
+        "RURUSSIAN_API_KEY": "YOUR_BOT_API_KEY"
       }
     }
   }
 }
 ```
 
+Get `YOUR_BOT_API_KEY` from the website profile page under the Bot API Key section after your subscription is active.
 You can also copy [openclaw_config.json](../examples/openclaw_config.json) as a starting template.
 
 ## Step 3: Key Flow in Bot Runtime
 
 - If you already have a key:
+  - The cleanest path is to preload `RURUSSIAN_API_KEY` in the OpenClaw config.
   - Call `authenticate(api_key, user_agent?)`.
 - If you do not have a key:
+  - Call `list_pricing_plans()` if you need to compare options first.
   - Call `create_key_purchase_session(email, plan, success_url?, cancel_url?)`.
-  - Send `checkout_url` to the user and let them finish hosted checkout.
-  - Call `confirm_key_purchase(session_id)` to fetch and load the new key without exposing the raw key in tool output.
+  - Send `checkout_url` to the user or let a payment-capable bot open it directly.
+  - After hosted checkout finishes, get `session_id` from the success redirect URL if it was not returned immediately.
+  - Call `confirm_key_purchase(session_id)` to unlock the MCP session without exposing the raw key in tool output.
 
 ## Step 4: Learning Tools
 
@@ -55,7 +60,7 @@ After authentication, call tools like `get_word_data`, `get_sentences`, `analyze
 - Connect your bot token in OpenClaw.
 - Add startup logic:
   - Check `authentication_status`.
-  - If not authenticated, prompt for an existing key or offer the purchase flow when the user asks to buy.
+  - If not authenticated, prompt for an existing key or offer `list_pricing_plans` plus the purchase flow when the user asks to buy.
 - Route learner prompts to RuRussian tools based on intent:
   - Vocabulary lookup → `get_word_data`
   - Grammar breakdown → `analyze_sentence`
@@ -67,7 +72,7 @@ After authentication, call tools like `get_word_data`, `get_sentences`, `analyze
 - Connect it to OpenClaw.
 - Add first-message hook:
   - Check `authentication_status`.
-  - If not authenticated, request an existing key or offer the purchase flow when the user asks to buy.
+  - If not authenticated, request an existing key or offer `list_pricing_plans` plus the purchase flow when the user asks to buy.
 - Route slash commands or messages:
   - `/word <term>` → `get_word_data`
   - `/translate <text>` → `translate_text`
@@ -91,6 +96,8 @@ After authentication, call tools like `get_word_data`, `get_sentences`, `analyze
   - Configure `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS`.
 - Invalid API key
   - Re-run `confirm_key_purchase` after payment or use a valid key in `authenticate`.
+- Payment confirmed but no key returned
+  - This backend can still unlock the MCP session in checkout-backed mode after `confirm_key_purchase`.
 - Python runtime mismatch
   - Use Python 3.9 or newer.
 - Tool command not available

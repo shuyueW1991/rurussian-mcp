@@ -8,8 +8,9 @@ MCP server for RURussian.com – turn your OpenClaw bot into a Russian tutor.
 Rurussian.com is a state-of-the-art tool designed for deep, immersive mastery of Russian vocabulary. At its core, it features sentence-driven declension memorization to help you internalize grammar naturally in context, plus precise, native-level text generation for individual words and full sentences. All generated content is laser-focused on the real-world, typical usage of terms as they appear in formal dictionary definitions. What’s more, the platform lets you create fully customized textbooks aligned exactly with your learning level and progress, with GPT-5-powered AI delivering in-depth, granular analysis of every sentence you collect and study.
 Rurussian.com is built to sustain a long-term Russian learning journey.
 
-
-
+This MCP is optimized for OpenClaw bots that need two things at once:
+- strong Russian-learning capabilities
+- a self-serve activation flow for bots that are allowed to pay for access
 
 ## Quick Start
 
@@ -28,29 +29,36 @@ pip install rurussian-mcp
       "command": "rurussian-mcp",
       "args": [],
       "env": {
-        "RURUSSIAN_API_URL": "https://rurussian.com/api"
+        "RURUSSIAN_API_URL": "https://rurussian.com/api",
+        "RURUSSIAN_API_KEY": "YOUR_BOT_API_KEY"
       }
     }
   }
 }
 ```
 
-3. If the bot already has a key, call `authenticate` first.
-4. If the bot has no key yet and the user wants to buy one, run `create_key_purchase_session`, let the user complete hosted checkout, then run `confirm_key_purchase`.
-5. `confirm_key_purchase` can auto-authenticate the session, but it never returns a raw API key.
+3. Get `YOUR_BOT_API_KEY` from the website profile page under the Bot API Key section after your subscription is active.
+4. If the bot already has a key, you can preload it through `RURUSSIAN_API_KEY` or call `authenticate` first.
+5. If the bot has no key yet and the user wants to buy one, call `list_pricing_plans`, then run `create_key_purchase_session`.
+6. If the bot has payment authority, it can open the hosted `checkout_url`, complete payment, capture the `session_id` from the success redirect when needed, and then run `confirm_key_purchase`.
+7. `confirm_key_purchase` can unlock the session even when the backend does not expose a raw API key.
 
 For a drop-in example file, see [openclaw_config.json](./examples/openclaw_config.json).
 
 ## Tool List
 
+- `list_pricing_plans()`
+  - Example request: "Show the available RuRussian plans for this bot."
 - `authenticate(api_key, user_agent?)`
   - Example request: "Use my RuRussian API key and initialize this session."
 - `authentication_status()`
   - Example request: "Check whether this session is already authenticated."
+- `purchase_status()`
+  - Example request: "Check whether checkout already unlocked this MCP session."
 - `create_key_purchase_session(email, plan, success_url?, cancel_url?)`
   - Example request: "Create a checkout session for `month_1` and return the payment URL."
 - `confirm_key_purchase(session_id, auto_authenticate?)`
-  - Example request: "Confirm the payment session and auto-authenticate if a key is issued."
+  - Example request: "Confirm the payment session and unlock this server session."
 - `get_word_data(word)`
   - Example request: "Explain the declension and meaning of `книга`."
 - `get_sentences(word, form_word?, form_id?)`
@@ -68,15 +76,18 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
 - Full documentation and integration details: [rurussian.com](https://rurussian.com)
 - Pricing plans: [rurussian.com/pricing](https://rurussian.com/pricing)
 - API key signup and account dashboard: [rurussian.com](https://rurussian.com)
+- Bot key management in profile: [rurussian.com/profile](https://rurussian.com/profile)
 
 ## Troubleshooting
 
 - Missing API key
-  - Pass a valid key into `authenticate`, or use the purchase flow if the user wants to buy a plan.
+  - Load a key from the profile page, pass it into `authenticate`, or use the purchase flow if the user wants to buy a plan.
 - Authentication required error
-  - Call `authenticate` before any other MCP tool in each new server session.
+  - Call `authenticate` before learner tools, or finish the hosted checkout flow and confirm it with `confirm_key_purchase`.
 - Purchase endpoint mismatch
   - Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` when your backend paths differ.
+- No API key returned after payment confirmation
+  - This backend can confirm payment without exposing a raw key. `confirm_key_purchase` still unlocks the MCP session in checkout-backed mode.
 - Python version issue
   - This package requires Python 3.9 or newer.
 - Command not found: `rurussian-mcp`
