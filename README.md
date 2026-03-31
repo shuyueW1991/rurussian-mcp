@@ -6,7 +6,7 @@
 
 MCP server for RURussian.com – turn your OpenClaw bot into a Russian tutor.
 Rurussian.com is a state-of-the-art tool designed for deep, immersive mastery of Russian vocabulary. At its core, it features sentence-driven declension memorization to help you internalize grammar naturally in context, plus precise, native-level text generation for individual words and full sentences. All generated content is laser-focused on the real-world, typical usage of terms as they appear in formal dictionary definitions. What’s more, the platform lets you create fully customized textbooks aligned exactly with your learning level and progress, with GPT-5-powered AI delivering in-depth, granular analysis of every sentence you collect and study.
-Rurussian.com is built to sustain a long-term Russian learning journey.
+Rurussian.com is built to sustain a long-term Russian learning journey, be able to help create and betterize russiandictionary, and let rusvibe be your own russian teacher.
 
 This MCP is optimized for OpenClaw bots that need two things at once:
 - strong Russian-learning capabilities
@@ -61,13 +61,13 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
   - Example request: "Confirm the payment session and unlock this server session."
 - `get_word_data(word)`
   - Example request: "Explain the declension and meaning of `книга`."
-- `get_sentences(word, form_word?, form_id?)`
-  - Example request: "Show example sentences for `идти` in past tense."
-- `generate_zakuska(topic?, mode?)`
-  - Example request: "Generate a short A2-level Russian text about travel."
+- `get_sentences(word?, form_word?, form_id?, email?, saved_only?, wait_seconds?, poll_interval_ms?)`
+  - Example request: "Generate a sentence for `идти` using the form `шёл`."
+- `generate_zakuska(mode?, learner_email, selected_words?, selected_sentences?, custom_text?, topic?)`
+  - Example request: "Generate a Zakuska in paste mode for learner@example.com using this text."
 - `analyze_sentence(sentence)`
   - Example request: "Break down this sentence and explain each form: `Я люблю программировать`."
-- `translate_text(text)`
+- `translate_text(text, source_lang?, target_lang?)`
   - Example request: "Translate this Russian paragraph to English."
 
 ## Full Docs and API Access
@@ -84,6 +84,8 @@ For a drop-in example file, see [openclaw_config.json](./examples/openclaw_confi
   - Load a key from the profile page, pass it into `authenticate`, or use the purchase flow if the user wants to buy a plan.
 - Authentication required error
   - Call `authenticate` before learner tools, or finish the hosted checkout flow and confirm it with `confirm_key_purchase`.
+- Zakuska request rejected
+  - Pass `learner_email` because the current live backend binds Zakuska generation and saved study state to a learner account.
 - Purchase endpoint mismatch
   - Set `RURUSSIAN_BUY_SESSION_ENDPOINTS` and `RURUSSIAN_CONFIRM_PURCHASE_ENDPOINTS` when your backend paths differ.
 - No API key returned after payment confirmation

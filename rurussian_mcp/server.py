@@ -1,5 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 from typing import Optional, Dict, Any, Iterable, Tuple
+import json
 import os
 import httpx
 from urllib.parse import urlparse, parse_qs
@@ -105,6 +106,11 @@ def _extract_first_present(data: Dict[str, Any], keys: Iterable[str]) -> Optiona
 
 def _normalize_status(status_value: Optional[str]) -> str:
     return (status_value or "").strip().lower()
+
+def _extract_error_text(data: Optional[Dict[str, Any]]) -> str:
+    if not data:
+        return ""
+    return _extract_first_present(data, ("error", "detail", "message", "reason")) or ""
 
 def _is_payment_confirmed(status_value: Optional[str]) -> bool:
     return _normalize_status(status_value) in PAYMENT_SUCCESS_STATUSES
@@ -226,45 +232,152 @@ async def get_word_data(word: str) -> Dict[str, Any]:
         try:
             response = await client.get(f"{API_BASE_URL}/word/{word}", headers=get_headers())
             response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": f"Failed to fetch word data: {str(e)}"}
+            return _safe_json(response)
+        except httpx.HTTPStatusError as exc:
+            error_data = _safe_json(exc.response)
+            error_text = _extract_error_text(error_data) or str(exc)
+            return {
+                "error": f"Failed to fetch word data: {error_text}",
+                "status_code": exc.response.status_code,
+                "response": error_data,
+            }
+        except Exception as exc:
+            return {"error": f"Failed to fetch word data: {str(exc)}"}
 
 @mcp.tool()
-async def get_sentences(word: str, form_word: str = None, form_id: str = None) -> Dict[str, Any]:
+async def get_sentences(
+    word: str = "",
+    form_word: str = "",
+    form_id: str = "",
+    email: str = "",
+    saved_only: bool = False,
+    wait_seconds: int = 800,
+    poll_interval_ms: int = 1500,
+) -> Dict[str, Any]:
     """
-    Get example sentences for a specific word and form.
+    Get generated example sentences for a specific Russian word form, or fetch saved Rusvibe sentences for an email.
     """
     auth_err = _check_auth()
     if auth_err: return auth_err
-        
-    params = {"word": word}
-    if form_word: params["formWord"] = form_word
-    if form_id: params["formId"] = form_id
-        
+
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         try:
-            response = await client.get(f"{API_BASE_URL}/rusvibe/sentences", params=params, headers=get_headers())
+            if saved_only or email:
+                if not email:
+                    return {"error": "email is required when requesting saved Rusvibe sentences."}
+                response = await client.get(
+                    f"{API_BASE_URL}/rusvibe/sentences",
+                    params={"email": email},
+                    headers=get_headers(),
+                )
+                response.raise_for_status()
+                data = _safe_json(response)
+                return {
+                    "email": email,
+                    "saved_sentences": data,
+                }
+
+            if not word:
+                return {"error": "word is required when generating example sentences."}
+
+            effective_form_word = form_word or word
+            effective_form_id = form_id or "mcp-form-0"
+            payload = {
+                "verb": word,
+                "forms": [
+                    {
+                        "id": effective_form_id,
+                        "form_name": effective_form_word,
+                        "word": effective_form_word,
+                    }
+                ],
+                "cache_only": True,
+                "wait_seconds": wait_seconds,
+                "poll_interval_ms": poll_interval_ms,
+            }
+            response = await client.post(
+                f"{API_BASE_URL}/generate_sentences",
+                json=payload,
+                headers=get_headers(),
+            )
             response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": f"Failed to fetch sentences: {str(e)}"}
+            data = _safe_json(response)
+            sentence_result = data.get(effective_form_id) if isinstance(data, dict) else None
+            return {
+                "word": word,
+                "form_word": effective_form_word,
+                "form_id": effective_form_id,
+                "sentence_result": sentence_result,
+                "results": data,
+            }
+        except httpx.HTTPStatusError as exc:
+            error_data = _safe_json(exc.response)
+            error_text = _extract_error_text(error_data) or str(exc)
+            return {
+                "error": f"Failed to fetch sentences: {error_text}",
+                "status_code": exc.response.status_code,
+                "response": error_data,
+            }
+        except Exception as exc:
+            return {"error": f"Failed to fetch sentences: {str(exc)}"}
 
 @mcp.tool()
-async def generate_zakuska(topic: str = "", mode: str = "default") -> Dict[str, Any]:
+async def generate_zakuska(
+    mode: str = "default",
+    learner_email: str = "",
+    selected_words: Optional[list[Any]] = None,
+    selected_sentences: Optional[list[Any]] = None,
+    custom_text: str = "",
+    topic: str = "",
+) -> Dict[str, Any]:
     """
-    Generate a short Russian text (Zakuska) for reading practice.
+    Generate a Rusvibe Zakuska using default, custom, or paste mode.
     """
     auth_err = _check_auth()
     if auth_err: return auth_err
-        
+
+    if not learner_email:
+        return {"error": "learner_email is required for Zakuska generation in the current RuRussian backend."}
+
+    payload: Dict[str, Any] = {
+        "user_email": learner_email,
+        "mode": mode,
+    }
+    if selected_words:
+        payload["selected_words"] = selected_words
+    if selected_sentences:
+        payload["selected_sentences"] = selected_sentences
+    if custom_text:
+        payload["custom_text"] = custom_text
+    elif topic and mode == "paste":
+        payload["custom_text"] = topic
+    elif topic and mode == "custom" and not selected_words:
+        payload["selected_words"] = [topic]
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            response = await client.post(f"{API_BASE_URL}/zakuska/generate", json={"topic": topic, "mode": mode}, headers=get_headers())
+            response = await client.post(
+                f"{API_BASE_URL}/zakuska/generate",
+                json=payload,
+                headers=get_headers(),
+            )
             response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": f"Failed to generate zakuska: {str(e)}"}
+            data = _safe_json(response)
+            return {
+                "mode": mode,
+                "learner_email": learner_email,
+                "result": data,
+            }
+        except httpx.HTTPStatusError as exc:
+            error_data = _safe_json(exc.response)
+            error_text = _extract_error_text(error_data) or str(exc)
+            return {
+                "error": f"Failed to generate zakuska: {error_text}",
+                "status_code": exc.response.status_code,
+                "response": error_data,
+            }
+        except Exception as exc:
+            return {"error": f"Failed to generate zakuska: {str(exc)}"}
 
 @mcp.tool()
 async def analyze_sentence(sentence: str) -> Dict[str, Any]:
@@ -276,21 +389,51 @@ async def analyze_sentence(sentence: str) -> Dict[str, Any]:
         
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            response = await client.post(f"{API_BASE_URL}/analyze_sentence", json={"text": sentence}, headers=get_headers())
+            response = await client.post(
+                f"{API_BASE_URL}/analyze_sentence",
+                json={"sentence": sentence},
+                headers=get_headers(),
+            )
             response.raise_for_status()
             lines = response.text.strip().split("\n")
-            result = []
+            parsed_chunks = []
+            analysis_stream = []
             for line in lines:
                 if line.startswith("data: "):
                     data_str = line[6:]
                     if data_str != "[DONE]":
-                        result.append(data_str)
-            return {"analysis_stream": result}
-        except Exception as e:
-            return {"error": f"Failed to analyze sentence: {str(e)}"}
+                        try:
+                            parsed = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            parsed = {"chunk": data_str}
+                        if isinstance(parsed, dict) and parsed.get("error"):
+                            return {"error": parsed["error"]}
+                        parsed_chunks.append(parsed)
+                        chunk_text = parsed.get("chunk") if isinstance(parsed, dict) else str(parsed)
+                        if isinstance(chunk_text, str) and chunk_text:
+                            analysis_stream.append(chunk_text)
+            return {
+                "analysis_stream": analysis_stream,
+                "analysis_chunks": parsed_chunks,
+                "analysis_text": "".join(analysis_stream).strip(),
+            }
+        except httpx.HTTPStatusError as exc:
+            error_data = _safe_json(exc.response)
+            error_text = _extract_error_text(error_data) or str(exc)
+            return {
+                "error": f"Failed to analyze sentence: {error_text}",
+                "status_code": exc.response.status_code,
+                "response": error_data,
+            }
+        except Exception as exc:
+            return {"error": f"Failed to analyze sentence: {str(exc)}"}
 
 @mcp.tool()
-async def translate_text(text: str) -> Dict[str, Any]:
+async def translate_text(
+    text: str,
+    source_lang: str = "Russian",
+    target_lang: str = "English",
+) -> Dict[str, Any]:
     """
     Translate Russian text to English.
     """
@@ -299,11 +442,33 @@ async def translate_text(text: str) -> Dict[str, Any]:
         
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         try:
-            response = await client.post(f"{API_BASE_URL}/translate", json={"text": text}, headers=get_headers())
+            response = await client.post(
+                f"{API_BASE_URL}/translate",
+                json={
+                    "text": text,
+                    "source_lang": source_lang,
+                    "target_lang": target_lang,
+                },
+                headers=get_headers(),
+            )
             response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": f"Failed to translate text: {str(e)}"}
+            data = _safe_json(response)
+            return {
+                "translation": _extract_first_present(data, ("translation", "translated_text", "text")) or "",
+                "source_lang": source_lang,
+                "target_lang": target_lang,
+                "response": data,
+            }
+        except httpx.HTTPStatusError as exc:
+            error_data = _safe_json(exc.response)
+            error_text = _extract_error_text(error_data) or str(exc)
+            return {
+                "error": f"Failed to translate text: {error_text}",
+                "status_code": exc.response.status_code,
+                "response": error_data,
+            }
+        except Exception as exc:
+            return {"error": f"Failed to translate text: {str(exc)}"}
 
 @mcp.tool()
 async def create_key_purchase_session(

@@ -1,7 +1,7 @@
 ---
 name: rurussian-mcp
-description: Turn an OpenClaw bot into a Russian tutor with vocabulary analysis, sentence breakdowns, reading drills, translation, and self-serve paid activation.
-version: 1.0.6
+description: Turn an OpenClaw bot into a Russian tutor with vocabulary analysis, sentence breakdowns, paid activation, be able to help create and betterize russiandictionary, and let rusvibe be your own russian teacher.
+version: 1.0.7
 homepage: https://github.com/shuyueW1991/rurussian-mcp
 metadata:
   openclaw:
@@ -21,15 +21,16 @@ metadata:
 ---
 # RuRussian MCP Server
 
-Use this server when a learner wants deep Russian help and when a bot is allowed to buy access on the learner's behalf. RuRussian is strongest at vocabulary mastery, declension awareness, sentence-level grammar explanation, short reading practice, and Russian-to-English translation.
+Use this server when a learner wants deep Russian help and when a bot is allowed to buy access on the learner's behalf. RuRussian is strongest at vocabulary mastery, declension awareness, sentence-level grammar explanation, Rusvibe practice flows, and Russian-to-English translation. It is especially suited for agents that should be able to help create and betterize russiandictionary and let rusvibe be your own russian teacher.
 
 ## When to Use This MCP
 
 Use RuRussian MCP when the user asks to:
 - Understand a Russian word, meaning, declension, or usage
-- See example sentences for a word or specific form
+- Generate example sentences for a word or specific form
+- Pull saved Rusvibe sentences for a learner email when the bot is continuing an ongoing study flow
 - Analyze a Russian sentence form-by-form
-- Generate short Russian reading practice content
+- Generate Zakuska reading practice in default, custom, or paste mode
 - Translate Russian text into English
 - Compare or buy RuRussian plans so the bot can activate service access
 
@@ -119,20 +120,20 @@ Optional:
   - Use for definitions, declensions, and detailed lexical context.
   - Best for direct vocabulary questions.
 
-- `get_sentences(word, form_word?, form_id?)`
-  - Use for usage examples and form-specific sentence retrieval.
-  - Best for contextual learning and grammar pattern practice.
+- `get_sentences(word?, form_word?, form_id?, email?, saved_only?, wait_seconds?, poll_interval_ms?)`
+  - Use for generated usage examples for a specific form.
+  - Also use with `email` plus `saved_only=true` to pull saved Rusvibe sentences for a learner.
 
-- `generate_zakuska(topic?, mode?)`
-  - Use to create short reading passages for practice.
-  - Best for level-focused drills and lesson prompts.
+- `generate_zakuska(mode?, learner_email, selected_words?, selected_sentences?, custom_text?, topic?)`
+  - Use to create Zakuska study content in `default`, `custom`, or `paste` mode.
+  - Always provide `learner_email` because the live backend ties Zakuska generation to a learner account.
 
 - `analyze_sentence(sentence)`
   - Use for grammatical breakdown of a full Russian sentence.
   - Best when the learner asks why forms are used.
 
-- `translate_text(text)`
-  - Use for Russian to English translation requests.
+- `translate_text(text, source_lang?, target_lang?)`
+  - Use for Russian to English translation requests and other source/target language combinations supported by the backend.
   - Best for comprehension support after reading.
 
 ## Recommended Agent Workflow

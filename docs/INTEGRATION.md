@@ -53,6 +53,7 @@ You can also copy [openclaw_config.json](../examples/openclaw_config.json) as a 
 ## Step 4: Learning Tools
 
 After authentication, call tools like `get_word_data`, `get_sentences`, `analyze_sentence`, `generate_zakuska`, and `translate_text`.
+For `generate_zakuska`, pass `learner_email` because the latest backend binds Zakuska generation to a learner account and saved Rusvibe state.
 
 ## Telegram Setup Flow
 
@@ -64,7 +65,7 @@ After authentication, call tools like `get_word_data`, `get_sentences`, `analyze
 - Route learner prompts to RuRussian tools based on intent:
   - Vocabulary lookup → `get_word_data`
   - Grammar breakdown → `analyze_sentence`
-  - Practice content → `generate_zakuska`
+  - Practice content → `generate_zakuska` with `learner_email`
 
 ## Discord Setup Flow
 
@@ -77,6 +78,7 @@ After authentication, call tools like `get_word_data`, `get_sentences`, `analyze
   - `/word <term>` → `get_word_data`
   - `/translate <text>` → `translate_text`
   - `/analyze <sentence>` → `analyze_sentence`
+  - `/zakuska <email>` → `generate_zakuska`
 
 ## Advanced Usage
 

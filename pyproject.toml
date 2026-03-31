@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rurussian-mcp"
-version = "1.0.6"
-description = "MCP server for rurussian.com - Russian learning context and sentences"
+version = "1.0.7"
+description = "MCP server for rurussian.com with OpenClaw-ready Russian learning, Rusvibe flows, and hosted checkout"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
